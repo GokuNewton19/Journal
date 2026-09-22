@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Angelsson">
+<meta name="theme-color" content="#F1E4D8">
+<title>Angelsson — Trade Journal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#F1E4D8;
+  --surface:#F1E4D8;
+  --shadow-l:rgba(255,255,255,0.75);
+  --shadow-d:rgba(196,150,112,0.38);
+  --accent:#E3A06E;
+  --accent-2:#D68A54;
+  --text:#6E4C38;
+  --text-soft:#A9846A;
+  --green:#8FAE8B;
+  --red:#D98A7B;
+  --radius:22px;
+  --radius-sm:14px;
+}
+[data-theme="dark"]{
+  --bg:#2A211C;
+  --surface:#2A211C;
+  --shadow-l:rgba(90,68,54,0.45);
+  --shadow-d:rgba(0,0,0,0.55);
+  --accent:#E3A06E;
+  --accent-2:#EFB585;
+  --text:#F0DCC7;
+  --text-soft:#C0A088;
+  --green:#9DC199;
+  --red:#E39C8C;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  transition:background .4s,color .4s;
+  -webkit-tap-highlight-color:transparent;
+}
+::selection{background:var(--accent);color:#fff;}
+
+/* ---------- Neumorphism helpers ---------- */
+.neu{
+  background:var(--surface);
+  border-radius:var(--radius);
+  box-shadow:8px 8px 16px var(--shadow-d), -8px -8px 16px var(--shadow-l);
+}
+.neu-in{
+  background:var(--surface);
+  border-radius:var(--radius-sm);
+  box-shadow:inset 5px 5px 10px var(--shadow-d), inset -5px -5px 10px var(--shadow-l);
+}
+.neu-btn{
+  background:var(--surface);
+  border:none;
+  border-radius:var(--radius-sm);
+  box-shadow:5px 5px 10px var(--shadow-d), -5px -5px 10px var(--shadow-l);
+  color:var(--text);
+  cursor:pointer;
+  padding:10px 16px;
+  font-size:14px;
+  font-weight:600;
+  transition:transform .12s, box-shadow .12s;
+}
+.neu-btn:active{
+  box-shadow:inset 4px 4px 8px var(--shadow-d), inset -4px -4px 8px var(--shadow-l);
+  transform:scale(0.98);
+}
+.neu-btn.primary{color:#fff;background:linear-gradient(145deg,var(--accent-2),var(--accent));box-shadow:5px 5px 12px var(--shadow-d), -3px -3px 8px var(--shadow-l);}
+.neu-btn.danger{color:var(--red);}
+.neu-btn.small{padding:6px 10px;font-size:12px;border-radius:10px;}
+.neu-btn.toggle.active{color:#fff;background:linear-gradient(145deg,var(--accent-2),var(--accent));}
+
+input, select, textarea{
+  width:100%;
+  border:none;
+  outline:none;
+  background:var(--surface);
+  color:var(--text);
+  border-radius:var(--radius-sm);
+  box-shadow:inset 4px 4px 8px var(--shadow-d), inset -4px -4px 8px var(--shadow-l);
+  padding:12px 14px;
+  font-size:14px;
+  font-family:inherit;
+}
+label{font-size:12.5px;color:var(--text-soft);font-weight:600;margin-bottom:6px;display:block;}
+.field{margin-bottom:14px;}
+.row{display:flex;gap:10px;}
+.row > *{flex:1;}
+
+/* ---------- Splash ---------- */
+#splash{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .6s ease;
+}
+#splash-grid{
+  position:relative;
+  width:min(70vw,300px);
+  height:min(70vw,300px);
+}
+.splash-sq{
+  position:absolute;
+  width:22%;
+  height:22%;
+  border-radius:16%;
+  background:linear-gradient(145deg,var(--accent-2),var(--accent));
+  box-shadow:6px 6px 14px var(--shadow-d), -6px -6px 14px var(--shadow-l);
+  opacity:0;
+  transition:transform 1s cubic-bezier(.2,.8,.2,1), opacity .5s ease;
+}
+#splash-text{
+  margin-top:34px;
+  font-size:19px;
+  font-weight:700;
+  letter-spacing:.3px;
+  color:var(--text);
+  opacity:0;
+  transition:opacity 1s ease, transform 1s ease;
+  transform:translateY(10px);
+  text-align:center;
+  padding:0 20px;
+}
+#splash-text span{color:var(--accent-2);}
+
+/* ---------- Layout ---------- */
+#app{display:none;max-width:920px;margin:0 auto;padding:16px 14px 60px;}
+header.top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;margin-bottom:16px;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;}
+.brand .logo{
+  width:30px;height:30px;border-radius:9px;
+  background:linear-gradient(145deg,var(--accent-2),var(--accent));
+  box-shadow:3px 3px 7px var(--shadow-d), -3px -3px 7px var(--shadow-l);
+}
+nav.tabs{
+  display:flex;gap:8px;padding:8px;margin-bottom:18px;overflow-x:auto;
+}
+nav.tabs button{white-space:nowrap;}
+.tabpanel{display:none;animation:fade .35s ease;}
+.tabpanel.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- Calendar ---------- */
+.cal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;margin-bottom:14px;}
+.cal-head h2{margin:0;font-size:17px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:14px;}
+.cal-dow{text-align:center;font-size:11px;color:var(--text-soft);font-weight:700;padding-bottom:4px;}
+.cal-day{
+  aspect-ratio:1/1;border-radius:14px;background:var(--surface);
+  box-shadow:4px 4px 9px var(--shadow-d), -4px -4px 9px var(--shadow-l);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;font-size:13px;font-weight:600;transition:transform .12s;
+}
+.cal-day:active{transform:scale(.95);}
+.cal-day.empty{background:transparent;box-shadow:none;cursor:default;}
+.cal-day.today{outline:2px solid var(--accent);outline-offset:1px;}
+.cal-day .dot{width:6px;height:6px;border-radius:50%;margin-top:3px;}
+.cal-day .dot.win{background:var(--green);}
+.cal-day .dot.loss{background:var(--red);}
+.cal-day .pnl-mini{font-size:9px;margin-top:1px;color:var(--text-soft);}
+
+/* ---------- Cards ---------- */
+.card{padding:18px;margin-bottom:16px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:600px){.grid3{grid-template-columns:repeat(2,1fr);}}
+.stat{padding:16px;text-align:center;}
+.stat .v{font-size:22px;font-weight:800;}
+.stat .l{font-size:11.5px;color:var(--text-soft);margin-top:4px;}
+.section-title{font-size:15px;font-weight:800;margin:22px 0 10px 4px;display:flex;align-items:center;gap:6px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:var(--text-soft);font-size:11.5px;padding:6px 8px;}
+td{padding:8px;}
+tr td{border-top:1px solid var(--shadow-d);}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.pill.win{background:rgba(143,174,139,.25);color:var(--green);}
+.pill.loss{background:rgba(217,138,123,.25);color:var(--red);}
+
+/* ---------- Modal ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.active{display:flex;}
+@media(min-width:640px){.overlay{align-items:center;}}
+.modal{
+  background:var(--surface);width:100%;max-width:560px;max-height:88vh;overflow-y:auto;
+  border-radius:26px 26px 0 0;padding:22px;box-shadow:0 -8px 30px rgba(0,0,0,.25);
+  animation:slideup .3s ease;
+}
+@media(min-width:640px){.modal{border-radius:26px;}}
+@keyframes slideup{from{transform:translateY(40px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.modal-head h3{margin:0;font-size:17px;}
+.close-x{background:none;border:none;font-size:20px;color:var(--text-soft);cursor:pointer;}
+.seg{display:flex;gap:8px;}
+.seg button{flex:1;}
+.reason-chip{display:inline-block;padding:8px 12px;border-radius:12px;margin:0 6px 6px 0;font-size:12.5px;cursor:pointer;}
+#screenshotPreview{max-width:100%;border-radius:14px;margin-top:8px;display:none;}
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--surface);padding:12px 20px;border-radius:16px;
+  box-shadow:6px 6px 14px var(--shadow-d), -6px -6px 14px var(--shadow-l);
+  font-size:13px;font-weight:600;z-index:900;opacity:0;transition:opacity .3s, transform .3s;pointer-events:none;
+  max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+.empty-state{text-align:center;padding:30px 10px;color:var(--text-soft);font-size:13.5px;}
+.chart-wrap{padding:16px;height:230px;}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+select.small-select{width:auto;padding:8px 12px;}
+.trade-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:14px;margin-bottom:8px;background:var(--surface);box-shadow:4px 4px 9px var(--shadow-d), -4px -4px 9px var(--shadow-l);}
+.trade-item .meta{font-size:11.5px;color:var(--text-soft);}
+.imgbtn{width:100%;padding:20px;border-radius:14px;text-align:center;font-size:13px;cursor:pointer;color:var(--text-soft);}
+</style>
+</head>
+<body data-theme="light">
+
+<div id="splash">
+  <div id="splash-grid"></div>
+  <div id="splash-text">Angelsson <span>Greatness begins here</span></div>
+</div>
+
+<div id="app">
+  <header class="top neu" style="border-radius:22px;">
+    <div class="brand"><div class="logo"></div> Angelsson</div>
+    <button class="neu-btn" id="themeToggle">🌙</button>
+  </header>
+
+  <nav class="tabs neu">
+    <button class="neu-btn toggle active" data-tab="calendar">📅 Calendar</button>
+    <button class="neu-btn toggle" data-tab="metrics">📊 Metrics</button>
+    <button class="neu-btn toggle" data-tab="pnl">💰 PnL</button>
+    <button class="neu-btn toggle" data-tab="export">📤 Export</button>
+  </nav>
+
+  <!-- CALENDAR TAB -->
+  <section class="tabpanel active" id="tab-calendar">
+    <div class="cal-head neu">
+      <button class="neu-btn small" id="prevMonth">‹</button>
+      <h2 id="calMonthLabel">Month</h2>
+      <button class="neu-btn small" id="nextMonth">›</button>
+    </div>
+    <div class="neu cal-grid" id="calGrid"></div>
+    <div style="text-align:center;margin-top:16px;">
+      <button class="neu-btn primary" id="addTradeBtn">➕ Add Trade</button>
+    </div>
+  </section>
+
+  <!-- METRICS TAB -->
+  <section class="tabpanel" id="tab-metrics">
+    <div class="section-title">📊 Overall Performance</div>
+    <div class="grid3" id="overallStats"></div>
+
+    <div class="section-title">🧠 Reason Insights</div>
+    <div class="grid2" id="reasonStats"></div>
+
+    <div class="section-title">💱 Per-Asset Breakdown</div>
+    <div class="neu card" style="overflow-x:auto;">
+      <table id="assetTable"></table>
+    </div>
+
+    <div class="section-title">🎯 Focus Recommendation</div>
+    <div class="neu card" id="focusCard"></div>
+  </section>
+
+  <!-- PNL TAB -->
+  <section class="tabpanel" id="tab-pnl">
+    <div class="filter-row">
+      <select class="small-select neu" id="pnlGranularity">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly" selected>Monthly</option>
+        <option value="range">Custom Range</option>
+      </select>
+      <select class="small-select neu" id="pnlAsset"><option value="all">All Assets</option></select>
+      <input type="date" class="small-select neu" id="pnlFrom" style="display:none;width:auto;">
+      <input type="date" class="small-select neu" id="pnlTo" style="display:none;width:auto;">
+    </div>
+    <div class="grid3" id="pnlStats"></div>
+    <div class="neu chart-wrap"><canvas id="pnlChart"></canvas></div>
+    <div class="section-title">📋 Trades in Range</div>
+    <div id="pnlTradeList"></div>
+  </section>
+
+  <!-- EXPORT TAB -->
+  <section class="tabpanel" id="tab-export">
+    <div class="section-title">📄 Export Single Trade</div>
+    <div class="neu card">
+      <div class="field"><select id="exportTradeSelect"></select></div>
+      <button class="neu-btn primary" id="exportSingleBtn">Export Trade PDF</button>
+    </div>
+
+    <div class="section-title">📅 Export by Date Range</div>
+    <div class="neu card">
+      <div class="row field">
+        <div><label>From</label><input type="date" id="rangeFrom"></div>
+        <div><label>To</label><input type="date" id="rangeTo"></div>
+      </div>
+      <div class="filter-row">
+        <button class="neu-btn small" data-quick="week">This Week</button>
+        <button class="neu-btn small" data-quick="month">This Month</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;cursor:pointer;">
+        <input type="checkbox" id="includeImagesRange" style="width:18px;height:18px;"> Include screenshots
+      </label>
+      <button class="neu-btn primary" id="exportRangeBtn">Export Range PDF</button>
+    </div>
+
+    <div class="section-title">📈 Export by Asset</div>
+    <div class="neu card">
+      <div class="field"><select id="exportAssetSelect"></select></div>
+      <button class="neu-btn primary" id="exportAssetBtn">Export Asset PDF (with images)</button>
+    </div>
+
+    <div class="section-title">🏷️ Manage Reasons</div>
+    <div class="neu card" id="reasonManageCard"></div>
+  </section>
+</div>
+
+<!-- TRADE MODAL -->
+<div class="overlay" id="tradeOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Add Trade</h3>
+      <button class="close-x" id="closeModal">✕</button>
+    </div>
+    <input type="hidden" id="tradeId">
+    <div class="field">
+      <label>📅 Date</label>
+      <input type="date" id="f_date">
+    </div>
+    <div class="field">
+      <label>💱 Pair / Asset</label>
+      <input type="text" id="f_pair" placeholder="e.g. EURUSD, XAUUSD, BTCUSD" list="pairList">
+      <datalist id="pairList"></datalist>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>📈 Direction</label>
+        <div class="seg"><button type="button" class="neu-btn toggle" data-val="long" data-group="direction">📈 Long</button><button type="button" class="neu-btn toggle" data-val="short" data-group="direction">📉 Short</button></div>
+      </div>
+      <div class="field">
+        <label>Result</label>
+        <div class="seg"><button type="button" class="neu-btn toggle" data-val="win" data-group="result">✅ Win</button><button type="button" class="neu-btn toggle" data-val="loss" data-group="result">❌ Loss</button></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>💰 Lot Size</label><input type="number" step="any" id="f_lot" placeholder="0.10"></div>
+      <div class="field"><label>💵 Amount Won/Lost ($)</label><input type="number" step="any" id="f_amount" placeholder="125.50"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>🎯 Risk (pips)</label><input type="number" step="any" id="f_riskpips" placeholder="15"></div>
+      <div class="field"><label>🛡️ Risk ($)</label><input type="number" step="any" id="f_riskusd" placeholder="20"></div>
+    </div>
+    <div class="field">
+      <label>🧠 How did you feel?</label>
+      <select id="f_feeling">
+        <option value="😌 Calm">😌 Calm</option>
+        <option value="😎 Confident">😎 Confident</option>
+        <option value="🤩 Excited">🤩 Excited</option>
+        <option value="😰 Nervous">😰 Nervous</option>
+        <option value="🤑 Greedy">🤑 Greedy</option>
+        <option value="😤 Revenge">😤 Revenge</option>
+        <option value="😱 FOMO">😱 FOMO</option>
+        <option value="🤔 Uncertain">🤔 Uncertain</option>
+        <option value="⏳ Impatient">⏳ Impatient</option>
+        <option value="😖 Frustrated">😖 Frustrated</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>🔍 What made you take the trade?</label>
+      <div id="reasonChips"></div>
+      <div class="row" style="margin-top:8px;">
+        <input type="text" id="newReasonInput" placeholder="Add new reason...">
+        <button type="button" class="neu-btn small" id="addReasonBtn" style="flex:0 0 auto;">＋</button>
+      </div>
+      <input type="hidden" id="f_reason">
+    </div>
+    <div class="field">
+      <label>📝 Notes (optional)</label>
+      <textarea id="f_notes" rows="2" placeholder="Anything else..."></textarea>
+    </div>
+    <div class="field">
+      <label>🖼️ Screenshot</label>
+      <input type="file" accept="image/*" id="f_screenshot" style="display:none;">
+      <div class="imgbtn neu-in" id="screenshotBtn">Tap to upload screenshot</div>
+      <img id="screenshotPreview">
+      <button type="button" class="neu-btn small danger" id="removeScreenshot" style="display:none;margin-top:8px;">Remove image</button>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <button class="neu-btn danger" id="deleteTradeBtn" style="display:none;">🗑️ Delete</button>
+      <button class="neu-btn primary" id="saveTradeBtn">💾 Save Trade</button>
+    </div>
+  </div>
+</div>
+
+<!-- DAY MODAL -->
+<div class="overlay" id="dayOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="dayModalTitle">Trades</h3>
+      <button class="close-x" id="closeDayModal">✕</button>
+    </div>
+    <div id="dayTradeList"></div>
+    <button class="neu-btn primary" id="dayAddBtn" style="width:100%;margin-top:10px;">➕ Add Trade This Day</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ STATE ============ */
+let trades = [];
+let reasons = ["Trendline Hit","Trendline Break","Liquidity Sweep","Fakeout","Reversal","Levels Hit"];
+let settings = { theme: "light" };
+let currentMonth = new Date();
+let selectedDayStr = null;
+let editingId = null;
+let pendingShot = null; // dataURL for currently-edited trade
+let removeShotFlag = false;
+
+const $ = (id) => document.getElementById(id);
+const fmt$ = (n) => (n<0? "-$"+Math.abs(n).toFixed(2) : "$"+n.toFixed(2));
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+function showToast(msg){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+/* ============ STORAGE (persists on the device) ============
+   Small data (trades, reasons, settings) -> localStorage.
+   Screenshots (large data URLs) -> localStorage, and if it does
+   not fit (quota) -> IndexedDB automatically.
+   Reads check both places so nothing is ever lost.
+============================================================ */
+const LS_PREFIX = "angelsson:";
+const IDB_NAME   = "angelsson-journal";
+const IDB_STORE  = "kv";
+let idbPromise   = null;
+
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise = new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error("IndexedDB unavailable")); return; }
+    let req;
+    try { req = indexedDB.open(IDB_NAME, 1); }
+    catch(e){ reject(e); return; }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error || new Error("IndexedDB open error"));
+    req.onblocked = () => reject(new Error("IndexedDB blocked"));
+  });
+  // if it fails once, don't keep retrying the same broken promise forever
+  idbPromise.catch(()=>{ idbPromise = null; });
+  return idbPromise;
+}
+
+function idbReq(mode, fn){
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    let request;
+    let tx;
+    try{
+      tx = db.transaction(IDB_STORE, mode);
+      request = fn(tx.objectStore(IDB_STORE));
+    }catch(e){ reject(e); return; }
+    tx.oncomplete = () => resolve(request ? request.result : undefined);
+    tx.onerror    = () => reject(tx.error || new Error("IndexedDB tx error"));
+    tx.onabort    = () => reject(tx.error || new Error("IndexedDB tx abort"));
+  }));
+}
+
+function lsAvailable(){
+  try{
+    const k = LS_PREFIX + "__test__";
+    localStorage.setItem(k, "1");
+    localStorage.removeItem(k);
+    return true;
+  }catch(e){ return false; }
+}
+
+async function safeGet(key){
+  try{
+    const v = localStorage.getItem(LS_PREFIX + key);
+    if(v !== null && v !== undefined) return v;
+  }catch(e){}
+  try{
+    const v = await idbReq("readonly", s => s.get(key));
+    return (v === undefined || v === null) ? null : v;
+  }catch(e){ return null; }
+}
+
+async function safeSet(key, value){
+  let storedInLS = false;
+  try{
+    localStorage.setItem(LS_PREFIX + key, value);
+    storedInLS = true;
+  }catch(e){
+    // quota exceeded / storage blocked -> clean partial write
+    try{ localStorage.removeItem(LS_PREFIX + key); }catch(_){}
+  }
+  if(storedInLS){
+    // keep IndexedDB in sync (remove any older copy of this key)
+    if(idbPromise){
+      idbReq("readwrite", s => s.delete(key)).catch(()=>{});
+    }
+    return true;
+  }
+  try{
+    await idbReq("readwrite", s => s.put(value, key));
+    return true;
+  }catch(e){
+    console.error("storage set fail", key, e);
+    return false;
+  }
+}
+
+async function safeDelete(key){
+  try{ localStorage.removeItem(LS_PREFIX + key); }catch(e){}
+  try{ await idbReq("readwrite", s => s.delete(key)); }catch(e){}
+}
+
+async function loadAll(){
+  const t = await safeGet("trades");
+  if(t){ try{ trades = JSON.parse(t); }catch(e){ trades=[]; } }
+  const r = await safeGet("reasons");
+  if(r){ try{ reasons = JSON.parse(r); }catch(e){} }
+  const s = await safeGet("settings");
+  if(s){ try{ settings = JSON.parse(s); }catch(e){} }
+  document.body.setAttribute("data-theme", settings.theme||"light");
+  $("themeToggle").textContent = (settings.theme==="dark") ? "☀️" : "🌙";
+}
+async function persistTrades(){ return await safeSet("trades", JSON.stringify(trades)); }
+async function persistReasons(){ return await safeSet("reasons", JSON.stringify(reasons)); }
+async function persistSettings(){ return await safeSet("settings", JSON.stringify(settings)); }
+
+async function getShot(id){ return await safeGet("shot:"+id); }
+async function setShot(id, dataUrl){ return await safeSet("shot:"+id, dataUrl); }
+async function delShot(id){ await safeDelete("shot:"+id); }
+
+/* ============ SPLASH ANIMATION ============ */
+function runSplash(){
+  const grid = $("splash-grid");
+  const cols=4, rows=3;
+  const squares=[];
+  for(let i=0;i<12;i++){
+    const sq=document.createElement("div");
+    sq.className="splash-sq";
+    const startX=(Math.random()*260-130), startY=(Math.random()*260-130);
+    const rot=(Math.random()*360-180);
+    sq.style.transform=`translate(${startX}px,${startY}px) rotate(${rot}deg) scale(.4)`;
+    grid.appendChild(sq);
+    squares.push(sq);
+  }
+  requestAnimationFrame(()=>{
+    setTimeout(()=>{
+      squares.forEach((sq,i)=>{
+        const col=i%cols, row=Math.floor(i/cols);
+        const x = col*(100/cols)+"%";
+        const y = row*(100/rows)+"%";
+        sq.style.left=x; sq.style.top=y;
+        sq.style.width=(100/cols - 4)+"%";
+        sq.style.height=(100/rows - 4)+"%";
+        sq.style.transitionDelay=(i*45)+"ms";
+        sq.style.opacity="1";
+        sq.style.transform="translate(0,0) rotate(0deg) scale(1)";
+      });
+    }, 120);
+  });
+  setTimeout(()=>{
+    $("splash-text").style.opacity="1";
+    $("splash-text").style.transform="translateY(0)";
+  }, 1300);
+  setTimeout(()=>{
+    $("splash").style.opacity="0";
+    setTimeout(()=>{
+      $("splash").style.display="none";
+      $("app").style.display="block";
+    },600);
+  }, 3200);
+}
+
+/* ============ TABS ============ */
+document.querySelectorAll("nav.tabs button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tabpanel").forEach(p=>p.classList.remove("active"));
+    $("tab-"+btn.dataset.tab).classList.add("active");
+    if(btn.dataset.tab==="metrics") renderMetrics();
+    if(btn.dataset.tab==="pnl") renderPnl();
+    if(btn.dataset.tab==="export") renderExport();
+  });
+});
+
+/* ============ THEME ============ */
+$("themeToggle").addEventListener("click", async ()=>{
+  settings.theme = (settings.theme==="dark") ? "light" : "dark";
+  document.body.setAttribute("data-theme", settings.theme);
+  $("themeToggle").textContent = (settings.theme==="dark") ? "☀️" : "🌙";
+  await persistSettings();
+});
+
+/* ============ CALENDAR ============ */
+function dayKey(d){ return d.toISOString().slice(0,10); }
+
+function renderCalendar(){
+  const y=currentMonth.getFullYear(), m=currentMonth.getMonth();
+  $("calMonthLabel").textContent = currentMonth.toLocaleString('default',{month:'long', year:'numeric'});
+  const grid=$("calGrid");
+  grid.innerHTML="";
+  ["S","M","T","W","T","F","S"].forEach(d=>{
+    const el=document.createElement("div"); el.className="cal-dow"; el.textContent=d; grid.appendChild(el);
+  });
+  const firstDay = new Date(y,m,1).getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  for(let i=0;i<firstDay;i++){
+    const el=document.createElement("div"); el.className="cal-day empty"; grid.appendChild(el);
+  }
+  for(let d=1; d<=daysInMonth; d++){
+    const dateObj = new Date(y,m,d);
+    const key = dayKey(dateObj);
+    const el=document.createElement("div");
+    el.className="cal-day";
+    if(key===todayStr()) el.classList.add("today");
+    const dayTrades = trades.filter(t=>t.date===key);
+    let pnl=0; let hasWin=false, hasLoss=false;
+    dayTrades.forEach(t=>{ pnl+=t.pnl; if(t.result==="win") hasWin=true; else hasLoss=true; });
+    el.innerHTML = `<span>${d}</span>`;
+    if(dayTrades.length){
+      const dot=document.createElement("div");
+      dot.className="dot "+(pnl>=0?"win":"loss");
+      el.appendChild(dot);
+      const mini=document.createElement("div");
+      mini.className="pnl-mini";
+      mini.textContent=(pnl>=0?"+":"")+pnl.toFixed(0);
+      el.appendChild(mini);
+    }
+    el.addEventListener("click",()=>openDayModal(key));
+    grid.appendChild(el);
+  }
+}
+$("prevMonth").addEventListener("click",()=>{ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); });
+$("nextMonth").addEventListener("click",()=>{ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); });
+
+/* ============ DAY MODAL ============ */
+function openDayModal(key){
+  selectedDayStr = key;
+  $("dayModalTitle").textContent = new Date(key+"T00:00:00").toLocaleDateString('default',{weekday:'long',month:'short',day:'numeric'});
+  const list = $("dayTradeList");
+  const dayTrades = trades.filter(t=>t.date===key);
+  if(!dayTrades.length){
+    list.innerHTML = `<div class="empty-state">No trades logged this day yet 📭</div>`;
+  } else {
+    list.innerHTML = dayTrades.map(t=>`
+      <div class="trade-item">
+        <div>
+          <div><strong>${t.pair}</strong> <span class="pill ${t.result}">${t.result==='win'?'✅ Win':'❌ Loss'}</span></div>
+          <div class="meta">${t.direction==='long'?'📈 Long':'📉 Short'} · ${t.reason} · ${fmt$(t.pnl)}</div>
+        </div>
+        <button class="neu-btn small" data-edit="${t.id}">✏️</button>
+      </div>
+    `).join("");
+    list.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>{
+      closeDayModal();
+      openTradeModal(b.dataset.edit);
+    }));
+  }
+  $("dayOverlay").classList.add("active");
+}
+function closeDayModal(){ $("dayOverlay").classList.remove("active"); }
+$("closeDayModal").addEventListener("click", closeDayModal);
+$("dayAddBtn").addEventListener("click",()=>{ closeDayModal(); openTradeModal(null, selectedDayStr); });
+$("addTradeBtn").addEventListener("click",()=>openTradeModal(null, todayStr()));
+
+/* ============ TRADE MODAL ============ */
+function setSeg(group,val){
+  document.querySelectorAll(`[data-group="${group}"]`).forEach(b=>{
+    b.classList.toggle("active", b.dataset.val===val);
+  });
+}
+document.querySelectorAll('[data-group]').forEach(b=>{
+  b.addEventListener("click",()=>setSeg(b.dataset.group,b.dataset.val));
+});
+
+function renderReasonChips(selected){
+  const wrap=$("reasonChips");
+  wrap.innerHTML="";
+  reasons.forEach(r=>{
+    const chip=document.createElement("span");
+    chip.className="reason-chip neu-btn"+(r===selected?" toggle active":"");
+    chip.textContent=r;
+    chip.addEventListener("click",()=>{
+      $("f_reason").value=r;
+      renderReasonChips(r);
+    });
+    wrap.appendChild(chip);
+  });
+}
+$("addReasonBtn").addEventListener("click",async ()=>{
+  const val=$("newReasonInput").value.trim();
+  if(!val) return;
+  if(!reasons.includes(val)) reasons.push(val);
+  await persistReasons();
+  $("newReasonInput").value="";
+  $("f_reason").value=val;
+  renderReasonChips(val);
+  showToast("Reason added ✅");
+});
+
+function pairDatalist(){
+  const uniq = [...new Set(trades.map(t=>t.pair))];
+  $("pairList").innerHTML = uniq.map(p=>`<option value="${p}">`).join("");
+}
+
+async function openTradeModal(id, presetDate){
+  editingId=id;
+  pendingShot=null; removeShotFlag=false;
+  pairDatalist();
+  $("screenshotPreview").style.display="none";
+  $("removeScreenshot").style.display="none";
+  $("deleteTradeBtn").style.display = id? "inline-block":"none";
+  $("modalTitle").textContent = id? "Edit Trade":"Add Trade";
+  if(id){
+    const t = trades.find(x=>x.id===id);
+    $("tradeId").value=t.id;
+    $("f_date").value=t.date;
+    $("f_pair").value=t.pair;
+    $("f_lot").value=t.lot;
+    $("f_amount").value=Math.abs(t.pnl);
+    $("f_riskpips").value=t.riskPips;
+    $("f_riskusd").value=t.riskUsd;
+    $("f_feeling").value=t.feeling;
+    $("f_notes").value=t.notes||"";
+    $("f_reason").value=t.reason;
+    setSeg("direction",t.direction);
+    setSeg("result",t.result);
+    renderReasonChips(t.reason);
+    if(t.hasShot){
+      const shot = await getShot(t.id);
+      if(shot){ $("screenshotPreview").src=shot; $("screenshotPreview").style.display="block"; $("removeScreenshot").style.display="inline-block"; pendingShot=shot; }
+    }
+  } else {
+    $("tradeId").value="";
+    $("f_date").value = presetDate||todayStr();
+    $("f_pair").value=""; $("f_lot").value=""; $("f_amount").value="";
+    $("f_riskpips").value=""; $("f_riskusd").value="";
+    $("f_feeling").value="😌 Calm";
+    $("f_notes").value="";
+    $("f_reason").value=reasons[0]||"";
+    setSeg("direction","long");
+    setSeg("result","win");
+    renderReasonChips(reasons[0]);
+  }
+  $("tradeOverlay").classList.add("active");
+}
+function closeTradeModal(){ $("tradeOverlay").classList.remove("active"); }
+$("closeModal").addEventListener("click", closeTradeModal);
+
+$("screenshotBtn").addEventListener("click",()=>$("f_screenshot").click());
+$("f_screenshot").addEventListener("change",(e)=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const img=new Image();
+  const reader=new FileReader();
+  reader.onload=(ev)=>{
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");
+      const maxW=900;
+      const scale=Math.min(1,maxW/img.width);
+      canvas.width=img.width*scale; canvas.height=img.height*scale;
+      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+      const dataUrl=canvas.toDataURL("image/jpeg",0.7);
+      pendingShot=dataUrl; removeShotFlag=false;
+      $("screenshotPreview").src=dataUrl;
+      $("screenshotPreview").style.display="block";
+      $("removeScreenshot").style.display="inline-block";
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+$("removeScreenshot").addEventListener("click",()=>{
+  pendingShot=null; removeShotFlag=true;
+  $("screenshotPreview").style.display="none";
+  $("removeScreenshot").style.display="none";
+  $("f_screenshot").value="";
+});
+
+$("saveTradeBtn").addEventListener("click", async ()=>{
+  const pair=$("f_pair").value.trim();
+  const lot=parseFloat($("f_lot").value);
+  const amount=parseFloat($("f_amount").value);
+  const riskPips=parseFloat($("f_riskpips").value);
+  const riskUsd=parseFloat($("f_riskusd").value);
+  const direction=document.querySelector('[data-group="direction"].active')?.dataset.val;
+  const result=document.querySelector('[data-group="result"].active')?.dataset.val;
+  const feeling=$("f_feeling").value;
+  const reason=$("f_reason").value || reasons[0];
+  const notes=$("f_notes").value.trim();
+  const date=$("f_date").value || todayStr();
+
+  if(!pair || isNaN(lot) || isNaN(amount) || isNaN(riskPips) || isNaN(riskUsd) || !direction || !result){
+    showToast("⚠️ Please fill all required fields");
+    return;
+  }
+  const pnl = result==="win" ? Math.abs(amount) : -Math.abs(amount);
+  let id = $("tradeId").value;
+  const isNew = !id;
+  if(isNew) id = "t"+Date.now()+Math.random().toString(36).slice(2,7);
+
+  const tradeObj = { id, date, pair, direction, result, lot, pnl,
+    riskPips, riskUsd, feeling, reason, notes, hasShot: !!pendingShot };
+
+  if(isNew){ trades.push(tradeObj); }
+  else { const idx=trades.findIndex(t=>t.id===id); trades[idx]=tradeObj; }
+
+  const savedOk = await persistTrades();
+
+  if(pendingShot){ await setShot(id, pendingShot); }
+  else if(removeShotFlag){ await delShot(id); }
+
+  closeTradeModal();
+  renderCalendar();
+  if(!savedOk){ showToast("⚠️ Could not save — device storage full"); }
+  else { showToast(isNew? "Trade saved ✅" : "Trade updated ✅"); }
+});
+
+$("deleteTradeBtn").addEventListener("click", async ()=>{
+  const id=$("tradeId").value;
+  if(!id) return;
+  if(!confirm("Delete this trade? This cannot be undone.")) return;
+  trades = trades.filter(t=>t.id!==id);
+  await persistTrades();
+  await delShot(id);
+  closeTradeModal();
+  renderCalendar();
+  showToast("Trade deleted 🗑️");
+});
+
+/* ============ METRICS ============ */
+function computeGroup(arr){
+  const total=arr.length;
+  const wins=arr.filter(t=>t.result==="win");
+  const losses=arr.filter(t=>t.result==="loss");
+  const pnl=arr.reduce((s,t)=>s+t.pnl,0);
+  const winRate= total? (wins.length/total*100):0;
+  return {total, wins, losses, pnl, winRate};
+}
+
+function renderMetrics(){
+  const g=computeGroup(trades);
+  const bestWin = g.wins.length? Math.max(...g.wins.map(t=>t.pnl)) : 0;
+  const worstLoss = g.losses.length? Math.min(...g.losses.map(t=>t.pnl)) : 0;
+  $("overallStats").innerHTML = `
+    <div class="neu stat"><div class="v">${g.total}</div><div class="l">Total Trades 📊</div></div>
+    <div class="neu stat"><div class="v" style="color:var(--green)">${g.wins.length}</div><div class="l">Wins ✅</div></div>
+    <div class="neu stat"><div class="v" style="color:var(--red)">${g.losses.length}</div><div class="l">Losses ❌</div></div>
+    <div class="neu stat"><div class="v">${g.winRate.toFixed(1)}%</div><div class="l">Win Rate 🎯</div></div>
+    <div class="neu stat"><div class="v" style="color:${g.pnl>=0?'var(--green)':'var(--red)'}">${fmt$(g.pnl)}</div><div class="l">Net PnL 💰</div></div>
+    <div class="neu stat"><div class="v">${fmt$(bestWin)} / ${fmt$(worstLoss)}</div><div class="l">Best Win / Worst Loss 🏆</div></div>
+  `;
+
+  // reason stats
+  const reasonMap={};
+  trades.forEach(t=>{
+    if(!reasonMap[t.reason]) reasonMap[t.reason]={wins:0,losses:0};
+    reasonMap[t.reason][t.result==="win"?"wins":"losses"]++;
+  });
+  let bestReason=null,bestReasonCount=-1,worstReason=null,worstReasonCount=-1;
+  Object.entries(reasonMap).forEach(([r,v])=>{
+    if(v.wins>bestReasonCount){bestReasonCount=v.wins;bestReason=r;}
+    if(v.losses>worstReasonCount){worstReasonCount=v.losses;worstReason=r;}
+  });
+  $("reasonStats").innerHTML = `
+    <div class="neu card">
+      <div style="font-size:12px;color:var(--text-soft);">🏆 You win most from</div>
+      <div style="font-size:17px;font-weight:800;margin-top:4px;">${bestReason||"—"} ${bestReasonCount>0?`(${bestReasonCount} wins)`:""}</div>
+    </div>
+    <div class="neu card">
+      <div style="font-size:12px;color:var(--text-soft);">⚠️ You lose most from</div>
+      <div style="font-size:17px;font-weight:800;margin-top:4px;">${worstReason||"—"} ${worstReasonCount>0?`(${worstReasonCount} losses)`:""}</div>
+    </div>
+  `;
+
+  // per asset
+  const assets=[...new Set(trades.map(t=>t.pair))];
+  const assetRows = assets.map(a=>{
+    const arr = trades.filter(t=>t.pair===a);
+    const s=computeGroup(arr);
+    return {a, ...s};
+  }).sort((x,y)=>y.total-x.total);
+
+  $("assetTable").innerHTML = assetRows.length ? `
+    <tr><th>Asset</th><th>Trades</th><th>Win Rate</th><th>Wins</th><th>Losses</th><th>PnL</th></tr>
+    ${assetRows.map(r=>`
+      <tr>
+        <td><strong>${r.a}</strong></td>
+        <td>${r.total}</td>
+        <td>${r.winRate.toFixed(1)}%</td>
+        <td style="color:var(--green)">${r.wins.length}</td>
+        <td style="color:var(--red)">${r.losses.length}</td>
+        <td style="color:${r.pnl>=0?'var(--green)':'var(--red)'}">${fmt$(r.pnl)}</td>
+      </tr>
+    `).join("")}
+  ` : `<tr><td class="empty-state">No trades yet 📭</td></tr>`;
+
+  const qualified = assetRows.filter(r=>r.total>=3);
+  const pool = qualified.length? qualified : assetRows;
+  const focus = pool.length? pool.reduce((best,r)=>r.winRate>best.winRate?r:best, pool[0]) : null;
+  $("focusCard").innerHTML = focus ? `
+    <div style="font-size:14px;">🎯 Based on win rate, focus more on <strong>${focus.a}</strong> — ${focus.winRate.toFixed(1)}% win rate across ${focus.total} trade${focus.total>1?'s':''}.</div>
+  ` : `<div class="empty-state">Log a few trades to get a recommendation 📭</div>`;
+}
+
+/* ============ PNL ============ */
+let pnlChartInstance=null;
+function weekKey(dateStr){
+  const d=new Date(dateStr+"T00:00:00");
+  const day=(d.getDay()+6)%7; // monday=0
+  d.setDate(d.getDate()-day);
+  return d.toISOString().slice(0,10);
+}
+function populateAssetSelects(){
+  const assets=[...new Set(trades.map(t=>t.pair))];
+  const opts = `<option value="all">All Assets</option>` + assets.map(a=>`<option value="${a}">${a}</option>`).join("");
+  $("pnlAsset").innerHTML = opts;
+  $("exportAssetSelect").innerHTML = assets.length? assets.map(a=>`<option value="${a}">${a}</option>`).join("") : `<option value="">No assets yet</option>`;
+}
+$("pnlGranularity").addEventListener("change",()=>{
+  const isRange = $("pnlGranularity").value==="range";
+  $("pnlFrom").style.display = isRange? "block":"none";
+  $("pnlTo").style.display = isRange? "block":"none";
+  renderPnl();
+});
+$("pnlAsset").addEventListener("change", renderPnl);
+$("pnlFrom").addEventListener("change", renderPnl);
+$("pnlTo").addEventListener("change", renderPnl);
+
+function renderPnl(){
+  populateAssetSelects();
+  const gran=$("pnlGranularity").value;
+  const assetFilter=$("pnlAsset").value;
+  let arr = trades.slice();
+  if(assetFilter!=="all") arr = arr.filter(t=>t.pair===assetFilter);
+  if(gran==="range"){
+    const from=$("pnlFrom").value, to=$("pnlTo").value;
+    if(from) arr=arr.filter(t=>t.date>=from);
+    if(to) arr=arr.filter(t=>t.date<=to);
+  }
+  arr.sort((a,b)=>a.date.localeCompare(b.date));
+
+  const g=computeGroup(arr);
+  $("pnlStats").innerHTML=`
+    <div class="neu stat"><div class="v" style="color:${g.pnl>=0?'var(--green)':'var(--red)'}">${fmt$(g.pnl)}</div><div class="l">Net PnL</div></div>
+    <div class="neu stat"><div class="v">${g.total}</div><div class="l">Trades</div></div>
+    <div class="neu stat"><div class="v">${g.winRate.toFixed(1)}%</div><div class="l">Win Rate</div></div>
+  `;
+
+  const groups={};
+  arr.forEach(t=>{
+    let key;
+    if(gran==="daily"||gran==="range") key=t.date;
+    else if(gran==="weekly") key=weekKey(t.date);
+    else key=t.date.slice(0,7);
+    groups[key]=(groups[key]||0)+t.pnl;
+  });
+  const labels=Object.keys(groups).sort();
+  const data=labels.map(l=>groups[l]);
+  let cum=0; const cumData=data.map(v=>cum+=v);
+
+  const ctx=$("pnlChart").getContext("2d");
+  if(pnlChartInstance) pnlChartInstance.destroy();
+  pnlChartInstance = new Chart(ctx,{
+    type:'bar',
+    data:{ labels, datasets:[
+      {type:'line', label:'Cumulative', data:cumData, borderColor:'#D68A54', backgroundColor:'rgba(214,138,84,.15)', tension:.3, yAxisID:'y'},
+      {type:'bar', label:'Period PnL', data, backgroundColor:data.map(v=>v>=0?'rgba(143,174,139,.7)':'rgba(217,138,123,.7)'), yAxisID:'y'}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:getComputedStyle(document.body).getPropertyValue('--text')}}},
+      scales:{
+        x:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-soft'),maxRotation:0}},
+        y:{ticks:{color:getComputedStyle(document.body).getPropertyValue('--text-soft')}}
+      }
+    }
+  });
+
+  const list=$("pnlTradeList");
+  list.innerHTML = arr.length? arr.slice().reverse().map(t=>`
+    <div class="trade-item">
+      <div><div><strong>${t.pair}</strong> <span class="pill ${t.result}">${t.result==='win'?'✅':'❌'}</span></div>
+      <div class="meta">${t.date} · ${t.direction==='long'?'📈':'📉'} · ${t.reason}</div></div>
+      <div style="font-weight:800;color:${t.pnl>=0?'var(--green)':'var(--red)'}">${fmt$(t.pnl)}</div>
+    </div>
+  `).join("") : `<div class="empty-state">No trades in this range 📭</div>`;
+}
+
+/* ============ EXPORT ============ */
+function renderExport(){
+  populateAssetSelects();
+  $("exportTradeSelect").innerHTML = trades.length? trades.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(t=>
+    `<option value="${t.id}">${t.date} · ${t.pair} · ${t.result==='win'?'Win':'Loss'} · ${fmt$(t.pnl)}</option>`
+  ).join("") : `<option value="">No trades yet</option>`;
+
+  $("reasonManageCard").innerHTML = reasons.map(r=>`<span class="reason-chip neu-btn small">${r}</span>`).join(" ") +
+    `<div class="empty-state" style="padding-top:14px;">Add new reasons from the trade form 📝</div>`;
+}
+
+function pdfHeader(doc,title){
+  doc.setFillColor(227,160,110);
+  doc.rect(0,0,210,26,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16);
+  doc.text("Angelsson Trade Journal", 14, 12);
+  doc.setFontSize(11);
+  doc.text(title, 14, 20);
+  doc.setTextColor(40,30,25);
+}
+
+async function exportTradePDF(t){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  pdfHeader(doc, `${t.pair} — ${t.date}`);
+  let y=38;
+  const lines=[
+    ["Pair/Asset", t.pair],
+    ["Date", t.date],
+    ["Direction", t.direction],
+    ["Result", t.result],
+    ["Lot Size", String(t.lot)],
+    ["Risk (pips)", String(t.riskPips)],
+    ["Risk ($)", "$"+t.riskUsd],
+    ["PnL", (t.pnl>=0?"+":"")+"$"+t.pnl.toFixed(2)],
+    ["Feeling", t.feeling],
+    ["Reason", t.reason],
+    ["Notes", t.notes||"-"]
+  ];
+  doc.setFontSize(11);
+  lines.forEach(([k,v])=>{
+    doc.setFont(undefined,'bold'); doc.text(k+":", 14, y);
+    doc.setFont(undefined,'normal');
+    const split = doc.splitTextToSize(String(v), 130);
+    doc.text(split, 60, y);
+    y += 8*split.length;
+  });
+  if(t.hasShot){
+    const shot = await getShot(t.id);
+    if(shot){
+      try{
+        y+=6;
+        if(y>230){ doc.addPage(); y=20; }
+        doc.addImage(shot,'JPEG',14,y,180,100,undefined,'FAST');
+      }catch(e){}
+    }
+  }
+  doc.save(`${t.pair}_${t.date}.pdf`);
+}
+
+function pdfTable(doc, arr, startY){
+  let y=startY;
+  doc.setFontSize(9);
+  doc.setFont(undefined,'bold');
+  doc.text("Date",14,y); doc.text("Pair",38,y); doc.text("Dir",66,y); doc.text("Res",80,y);
+  doc.text("Lot",96,y); doc.text("Risk$",112,y); doc.text("PnL",132,y); doc.text("Reason",152,y);
+  y+=5; doc.setFont(undefined,'normal');
+  arr.forEach(t=>{
+    if(y>280){ doc.addPage(); y=16; }
+    doc.text(t.date,14,y); doc.text(t.pair.slice(0,10),38,y); doc.text(t.direction.slice(0,4),66,y);
+    doc.text(t.result.slice(0,4),80,y); doc.text(String(t.lot),96,y); doc.text("$"+t.riskUsd,112,y);
+    doc.text((t.pnl>=0?"+":"")+t.pnl.toFixed(2),132,y); doc.text(String(t.reason).slice(0,16),152,y);
+    y+=6;
+  });
+  return y;
+}
+
+async function exportRangePDF(arr, title, includeImages){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  pdfHeader(doc, title);
+  const g=computeGroup(arr);
+  doc.setFontSize(11);
+  doc.text(`Trades: ${g.total}   Win Rate: ${g.winRate.toFixed(1)}%   Net PnL: ${(g.pnl>=0?'+':'')}$${g.pnl.toFixed(2)}`,14,34);
+  let y=pdfTable(doc, arr, 44);
+  if(includeImages){
+    for(const t of arr){
+      if(t.hasShot){
+        const shot = await getShot(t.id);
+        if(shot){
+          doc.addPage();
+          pdfHeader(doc, `${t.pair} — ${t.date}`);
+          try{ doc.addImage(shot,'JPEG',14,34,180,100,undefined,'FAST'); }catch(e){}
+        }
+      }
+    }
+  }
+  doc.save(`${title.replace(/\s+/g,'_')}.pdf`);
+}
+
+$("exportSingleBtn").addEventListener("click", async ()=>{
+  const id=$("exportTradeSelect").value;
+  const t=trades.find(x=>x.id===id);
+  if(!t){ showToast("No trade selected"); return; }
+  await exportTradePDF(t);
+});
+
+document.querySelectorAll("[data-quick]").forEach(b=>{
+  b.addEventListener("click",()=>{
+    const now=new Date();
+    if(b.dataset.quick==="week"){
+      const day=(now.getDay()+6)%7;
+      const monday=new Date(now); monday.setDate(now.getDate()-day);
+      $("rangeFrom").value=monday.toISOString().slice(0,10);
+      $("rangeTo").value=now.toISOString().slice(0,10);
+    } else {
+      const first=new Date(now.getFullYear(),now.getMonth(),1);
+      $("rangeFrom").value=first.toISOString().slice(0,10);
+      $("rangeTo").value=now.toISOString().slice(0,10);
+    }
+  });
+});
+
+$("exportRangeBtn").addEventListener("click", async ()=>{
+  const from=$("rangeFrom").value, to=$("rangeTo").value;
+  let arr=trades.slice();
+  if(from) arr=arr.filter(t=>t.date>=from);
+  if(to) arr=arr.filter(t=>t.date<=to);
+  arr.sort((a,b)=>a.date.localeCompare(b.date));
+  if(!arr.length){ showToast("No trades in that range"); return; }
+  await exportRangePDF(arr, `Trades ${from||'start'} to ${to||'now'}`, $("includeImagesRange").checked);
+});
+
+$("exportAssetBtn").addEventListener("click", async ()=>{
+  const asset=$("exportAssetSelect").value;
+  if(!asset){ showToast("No asset available"); return; }
+  const arr=trades.filter(t=>t.pair===asset).sort((a,b)=>a.date.localeCompare(b.date));
+  await exportRangePDF(arr, `${asset} Trade History`, true);
+});
+
+/* ============ STORAGE SANITY CHECK ============ */
+async function storageCheck(){
+  const key = "__probe__";
+  const ok = await safeSet(key, "1");
+  let readBack = null;
+  if(ok) readBack = await safeGet(key);
+  await safeDelete(key);
+  if(!ok || readBack !== "1"){
+    showToast("⚠️ Storage is blocked — data may not persist");
+  }
+}
+
+/* ============ INIT ============ */
+async function init(){
+  runSplash();
+  await loadAll();
+  renderCalendar();
+  renderMetrics();
+  populateAssetSelects();
+  setTimeout(storageCheck, 3600);
+}
+init();
+
+})();
+</script>
+</body>
+</html>
